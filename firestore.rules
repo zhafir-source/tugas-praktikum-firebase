@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Profil pengguna: hanya pemilik akun
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Transaksi: hanya pemilik akun, dengan validasi dasar
+    match /users/{userId}/transactions/{txId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0
+        && request.resource.data.type in ['INCOME', 'EXPENSE']
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0;
+    }
+  }
+}
